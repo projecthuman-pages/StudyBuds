@@ -347,7 +347,7 @@ function water(i, pct) {
 
 let openPopover = null;
 
-function togglePopover(i, hasHW, btnEl) {
+function toggleHWMenu(i, hasHW, btnEl) {
   // close any already open popover
   if (openPopover) {
     openPopover.remove();
