@@ -4,90 +4,89 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bloom — Study Garden</title>
-
   <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&family=Fraunces:ital,wght@0,300;0,400;1,300;1,400&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css">  
+  <link rel="stylesheet" href="css/styles.css?v=4">
 </head>
 
 <body>
 
   <!-- Welcome Screen -->
-  
   <div id="welcome-screen">
     <div class="welcome-emoji">🌱</div>
     <div class="welcome-title">bloom</div>
     <div class="welcome-sub">Your subjects are plants. Study them to keep them alive. Neglect them and they wilt — and the weeds will come.</div>
     <button class="welcome-btn" onclick="dismissWelcome()">Plant my first subject 🌸</button>
   </div>
-  
+
+  <!-- Daily Check-in Screen -->
+  <div id="checkin-screen" style="display:none">
+    <div class="checkin-emoji">📋</div>
+    <div class="checkin-title">Good morning!</div>
+    <div class="checkin-sub">Did you do your homework yesterday? Tick what you completed.</div>
+    <div id="checkin-list"></div>
+    <button class="checkin-btn" onclick="confirmCheckin()">Done 🌸</button>
+  </div>
+
   <!-- Pull Weed Prompt -->
-  
   <div class="pull-overlay" id="pull-overlay">
     <div class="pull-box">
-      <div class="big">🌿</div>
+      <div class="big">🐛</div>
       <h3>A weed is ready to pull!</h3>
       <p>Your homework habits have improved. Time to clear the garden and let some light back in.</p>
-      <button class="pull-btn" onclick="pullWeed()">Pull it out 🌿</button>
+      <button class="pull-btn" onclick="pullWeed()">Pull it out 🐛</button>
     </div>
   </div>
-  
+
   <header>
     <div class="logo">🌱 bloom</div>
     <div class="header-actions">
       <button class="btn btn-ghost btn-sm" onclick="showTab('timetable')">📅 Timetable</button>
       <button class="btn btn-primary btn-sm" onclick="openAddModal()">+ Subject</button>
     </div>
-  
   </header>
-  
+
   <div class="tabs">
     <button class="tab active" id="tab-garden" onclick="showTab('garden')">My Garden</button>
     <button class="tab" id="tab-timetable" onclick="showTab('timetable')">Timetable</button>
   </div>
-  
+
   <main>
     <div id="view-garden">
       <div class="homework-banner">
         <div class="homework-banner-title">📝 Today's homework</div>
         <div class="hw-subjects" id="hw-chips"></div>
       </div>
-  
+
       <div class="section-header">
         <div class="section-title" id="garden-subtitle">Your garden 🌿</div>
       </div>
       <div class="garden-grid" id="garden-grid"></div>
     </div>
-    
+
     <div id="view-timetable" style="display:none">
       <div class="section-header">
         <div class="section-title">Weekly schedule</div>
         <span style="font-size:12px;color:var(--muted);font-weight:700;">Tap days to toggle</span>
       </div>
-  
       <div class="timetable-wrap"><table id="timetable"></table></div>
     </div>
-  
   </main>
-    
-  <!-- Weeds -->
-  
+
+  <!-- Weeds (hidden) -->
   <div class="weed-bar" id="weed-bar"></div>
-  
+
   <!-- Add Subject Modal -->
-  
-    <div class="overlay" id="modal-overlay" onclick="closeModal(event)">
+  <div class="overlay" id="modal-overlay" onclick="closeModal(event)">
     <div class="modal">
       <div class="modal-title">New subject 🌱</div>
       <div class="field">
         <label>Subject name</label>
         <input type="text" id="input-name" placeholder="e.g. Math, English…">
       </div>
-  
       <div class="field">
         <label>Pick a plant</label>
         <div class="plant-picker" id="plant-picker"></div>
       </div>
-      
       <div class="field">
         <label>How demanding?</label>
         <select id="input-freq">
@@ -96,17 +95,16 @@
           <option value="low">Low — wilts in 7 days 🌵</option>
         </select>
       </div>
-      
       <div class="modal-actions">
         <button class="btn btn-ghost" onclick="closeModalDirect()">Cancel</button>
         <button class="btn btn-primary" onclick="addSubject()">Add plant ✨</button>
       </div>
-    
     </div>
   </div>
+
   <div class="toast" id="toast"></div>
 
-  <script src="js/app.js"></script>
+  <script src="js/app.js?v=4"></script>
 
 </body>
 </html>
