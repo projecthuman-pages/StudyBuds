@@ -1,8 +1,9 @@
 // ─── Constants ────────────────────────────
 
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-const TODAY_IDX = (new Date().getDay() + 6) % 7;
-const TODAY_KEY = new Date().toISOString().slice(0,10);
+const _today = new Date();
+const TODAY_IDX = (_today.getDay() + 6) % 7;
+const TODAY_KEY = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStart(2,'0')}-${String(_today.getDate()).padStart(2,'0')}`;
 const WILT_HOURS = { high: 24, medium: 72, low: 168 };
 const WATER_AMT  = { high: 45, medium: 32, low: 22 };
 const PLANT_OPTIONS = ['🌸','🌺','🌻','🌹','🌷','🌼','💐','🌿','🍀','🌱','🌵','🎋','🪴','🎍','🍃'];
