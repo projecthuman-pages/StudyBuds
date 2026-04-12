@@ -481,22 +481,15 @@ function showCheckin() {
 function confirmCheckin() {
   const boxes = document.querySelectorAll('.checkin-box');
   boxes.forEach(box => {
-    const sid = box.dataset.id;
-    const checked = box.checked;
-    todayHW[sid] = checked;
-    if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
-    hwLog[TODAY_KEY][sid] = checked;
-
-    if (checked) {
-      const s = subjects.find(s => s.id === sid);
-      if (s && !s.dead) {
-        const h = getHealth(s);
-        const newH = Math.min(100, h + WATER_AMT[s.freq]);
-        const dph = 100 / WILT_HOURS[s.freq];
-        s.lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
+      const sid = box.dataset.id;
+      if (box.checked) {
+        // has homework due today — mark as due but NOT done yet
+        todayHW[sid] = false;
+      } else {
+        // no homework today — remove entirely
+        delete todayHW[sid];
       }
-    }
-  });
+    });
 
   localStorage.setItem('bloom_checkin', TODAY_KEY);
   save();
