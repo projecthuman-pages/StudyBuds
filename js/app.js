@@ -7,8 +7,10 @@ const TODAY_KEY = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStar
 const WILT_HOURS = { high: 24, medium: 72, low: 168 };
 const WATER_AMT  = { high: 45, medium: 32, low: 22 };
 const PLANT_OPTIONS = ['🌸','🌺','🌻','🌹','🌷','🌼','💐','🌿','🍀','🌱','🌵','🎋','🪴','🎍','🍃'];
-const MISS_WEED1 = 0.40; // baby weed
-const MISS_WEED2 = 0.60; // full weed
+const WEED_EMOJI = '🐛';
+const MISS_WEED1 = 0.40;
+const MISS_WEED2 = 0.60;
+const MIN_DAYS_FOR_WEED = 3; // need at least 3 days of data before weeds can spawn
 
 // ─── State ────────────────────────────────
 
@@ -16,9 +18,10 @@ let subjects  = JSON.parse(localStorage.getItem('bloom_subjects')  || '[]');
 let schedule  = JSON.parse(localStorage.getItem('bloom_schedule')  || '{}');
 let hwLog     = JSON.parse(localStorage.getItem('bloom_hwlog')     || '{}');
 let todayHW   = JSON.parse(localStorage.getItem('bloom_todayHW')   || '{}');
-let weedState = JSON.parse(localStorage.getItem('bloom_weed')      || '{"level":0,"readyToPull":false}');
+let weedState = JSON.parse(localStorage.getItem('bloom_weed')      || '{"level":0,"readyToPull":false,"lastChecked":null}');
 let pullShown = false;
 let selectedPlant = PLANT_OPTIONS[0];
+let weedSlot = null; // fixed random slot for weed card this session
 
 function save() {
   localStorage.setItem('bloom_subjects', JSON.stringify(subjects));
@@ -52,52 +55,68 @@ function healthLabel(h) {
 
 // ─── Miss Rate (rolling 7-day, assigned days only) ─
 
-function getMissRate() {
-  let assigned = 0, missed = 0;
+function getMissData() {
+  let assigned = 0, missed = 0, daysWithData = 0;
   for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0,10);
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const dayLog = hwLog[key];
     if (!dayLog) continue;
-    Object.values(dayLog).forEach(done => {
+    const entries = Object.values(dayLog);
+    if (entries.length > 0) daysWithData++;
+    entries.forEach(done => {
       assigned++;
       if (!done) missed++;
     });
   }
-  return assigned === 0 ? 0 : missed / assigned;
+  return { rate: assigned === 0 ? 0 : missed / assigned, daysWithData };
 }
 
-// ─── Golden (all assigned hw done in last 7 days) ─
+// ─── Golden ───────────────────────────────
+// Golden = completed ALL assigned homework last time each subject was assigned.
+// If the most recent assigned day was missed, not golden.
 
 function isGolden(sid) {
-  let assigned = 0, done = 0;
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(); d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0,10);
+  // Find the most recent day this subject had assigned homework
+  for (let i = 0; i <= 6; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const dayLog = hwLog[key];
     if (!dayLog || dayLog[sid] === undefined) continue;
-    assigned++;
-    if (dayLog[sid]) done++;
+    // Found the most recent assigned day — return whether it was done
+    return dayLog[sid] === true;
   }
-  return assigned >= 1 && done === assigned;
+  return false; // no data yet
 }
 
-// ─── Weed ─────────────────────────────────
+// ─── Weed (end-of-day check only) ─────────
 
 function updateWeed() {
-  const rate = getMissRate();
-  const prev = weedState.level;
+  const { rate, daysWithData } = getMissData();
 
-  if (rate >= MISS_WEED2)      weedState.level = 2;
-  else if (rate >= MISS_WEED1) weedState.level = 1;
-  else {
-    if (prev > 0) weedState.readyToPull = true;
-    weedState.level = 0;
+  // Only recalculate weed level once per day at midnight
+  const alreadyCheckedToday = weedState.lastChecked === TODAY_KEY;
+
+  if (!alreadyCheckedToday) {
+    weedState.lastChecked = TODAY_KEY;
+
+    // Need minimum days of data before weeds can appear
+    if (daysWithData >= MIN_DAYS_FOR_WEED) {
+      const prev = weedState.level;
+      if (rate >= MISS_WEED2)      weedState.level = 2;
+      else if (rate >= MISS_WEED1) weedState.level = 1;
+      else {
+        if (prev > 0) weedState.readyToPull = true;
+        weedState.level = 0;
+      }
+    }
+    save();
   }
 
-  save();
-  renderWeeds();
-  updateDarkness();
+  updateBgColor();
+  renderGarden(); // re-render so weed card appears/disappears
 
   if (weedState.readyToPull && weedState.level === 0 && !pullShown) {
     pullShown = true;
@@ -108,32 +127,43 @@ function updateWeed() {
 function pullWeed() {
   weedState.readyToPull = false;
   pullShown = false;
+  weedSlot = null;
   save();
   document.getElementById('pull-overlay').classList.remove('show');
-  showToast('🌿 Weed pulled! Garden is clearing ✨');
-  renderWeeds();
-  updateDarkness();
+  showToast('🐛 Weed pulled! Garden is clearing ✨');
+  updateBgColor();
+  renderGarden();
 }
 
-function renderWeeds() {
-  const bar = document.getElementById('weed-bar');
-  bar.innerHTML = '';
-  if (weedState.level === 0) return;
-  const count = weedState.level === 1 ? 3 : 5;
-  const emojis = ['🌿','🍃','☘️','🌾','🌿'];
-  const heights = [30, 50, 25, 40, 35];
-  for (let i = 0; i < count; i++) {
-    const item = document.createElement('div');
-    item.className = 'weed-item';
-    const h = heights[i] * (weedState.level === 2 ? 1.4 : 1);
-    item.innerHTML = `<div class="weed-head">${emojis[i]}</div><div class="weed-stem" style="height:${h}px"></div>`;
-    bar.appendChild(item);
+function updateBgColor() {
+  const root = document.documentElement;
+  if (weedState.level === 2) {
+    root.style.setProperty('--bg', '#e8e0d0');
+    root.style.setProperty('--surface', '#f0e8da');
+  } else if (weedState.level === 1) {
+    root.style.setProperty('--bg', '#ede8df');
+    root.style.setProperty('--surface', '#f5f0e8');
+  } else {
+    root.style.setProperty('--bg', '#f5f0eb');
+    root.style.setProperty('--surface', '#faf7f4');
   }
+  // Remove old brightness filter
+  document.body.style.filter = '';
 }
 
-function updateDarkness() {
-  const d = weedState.level === 2 ? 1 : weedState.level === 1 ? 0.5 : 0;
-  document.documentElement.style.setProperty('--darkness', d);
+// ─── Weed Card ────────────────────────────
+
+function buildWeedCard() {
+  const card = document.createElement('div');
+  card.className = 'plant-card weed-card';
+  const label = weedState.level === 2 ? 'Overgrown' : 'Sprouting';
+  card.innerHTML = `
+    <div class="plant-name" style="color:var(--danger)">Weed</div>
+    <div style="font-size:48px;margin:4px 0;animation:weedSway 2s ease-in-out infinite">${WEED_EMOJI}</div>
+    <div class="health-label" style="color:var(--danger)">${label}</div>
+    <div style="font-size:10px;color:var(--muted);text-align:center;line-height:1.5;margin-top:2px">Keep up with homework to pull this weed!</div>
+  `;
+  return card;
 }
 
 // ─── Homework Banner ──────────────────────
@@ -142,7 +172,7 @@ function renderHWBanner() {
   const chips = document.getElementById('hw-chips');
   chips.innerHTML = '';
 
-   const todaySubjects = subjects
+  const todaySubjects = subjects
     .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
 
   if (todaySubjects.length === 0) {
@@ -151,13 +181,13 @@ function renderHWBanner() {
   }
 
   todaySubjects.forEach(s => {
-      const done = todayHW[s.id] === true;
-      const chip = document.createElement('div');
-      chip.className = `hw-chip ${done ? 'done' : ''}`;
-      chip.innerHTML = `<div class="chip-check">${done ? '✓' : ''}</div>${s.emoji} ${s.name}`;
-      chip.onclick = () => toggleHW(s.id);
-      chips.appendChild(chip);
-    });
+    const done = todayHW[s.id] === true;
+    const chip = document.createElement('div');
+    chip.className = `hw-chip ${done ? 'done' : ''}`;
+    chip.innerHTML = `<div class="chip-check">${done ? '✓' : ''}</div>${s.emoji} ${s.name}`;
+    chip.onclick = () => toggleHW(s.id);
+    chips.appendChild(chip);
+  });
 }
 
 function toggleHW(sid) {
@@ -179,22 +209,18 @@ function toggleHW(sid) {
   }
 
   save();
-  updateWeed();
   renderHWBanner();
-  renderGarden();
+  renderGarden(); // updates badges and borders instantly, but does NOT recalc weed level
 }
 
 // ─── Face SVG ─────────────────────────────
 
 function faceSVG(health) {
   if (health > 65) {
-    // big smile, dot eyes
     return `<svg width="32" height="18" viewBox="0 0 32 18"><path d="M5 3 Q16 16 27 3" stroke="#3a3530" stroke-width="2.5" stroke-linecap="round" fill="none"/><circle cx="10" cy="6" r="2.2" fill="#3a3530"/><circle cx="22" cy="6" r="2.2" fill="#3a3530"/></svg>`;
   } else if (health > 35) {
-    // neutral
     return `<svg width="32" height="14" viewBox="0 0 32 14"><path d="M8 8 L24 8" stroke="#3a3530" stroke-width="2.5" stroke-linecap="round"/><circle cx="10" cy="4" r="2" fill="#3a3530"/><circle cx="22" cy="4" r="2" fill="#3a3530"/></svg>`;
   } else {
-    // sad, worried brows
     return `<svg width="32" height="18" viewBox="0 0 32 18"><path d="M5 15 Q16 5 27 15" stroke="#3a3530" stroke-width="2.5" stroke-linecap="round" fill="none"/><path d="M7 5 Q10 3 13 5" stroke="#3a3530" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M19 5 Q22 3 25 5" stroke="#3a3530" stroke-width="2" stroke-linecap="round" fill="none"/></svg>`;
   }
 }
@@ -204,19 +230,25 @@ function faceSVG(health) {
 function renderGarden() {
   const grid = document.getElementById('garden-grid');
   grid.innerHTML = '';
+
+  // Build list of cards to insert, then inject weed at fixed random slot
+  const cards = [];
+
   subjects.forEach((s, i) => {
     const h = getHealth(s);
-    const dead   = s.dead || h <= 0;
+    const dead    = s.dead || h <= 0;
     const wilting = !dead && h <= 35;
-    const golden  = !dead && isGolden(s.id);
+    // Golden: only if homework was done AND not currently due
+    const hwDoneToday = !schedule[s.id] || !schedule[s.id][TODAY_IDX] || todayHW[s.id] === true;
+    const golden  = !dead && isGolden(s.id) && hwDoneToday;
     const hasHW   = schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] === false;
-    const card = document.createElement('div');
 
+    const card = document.createElement('div');
     let cls = 'plant-card';
-    if (dead)    cls += ' dead';
+    if (dead)         cls += ' dead';
     else if (wilting) cls += ' wilting';
-    if (golden && !dead) cls += ' golden';
-    if (hasHW && !dead) cls += ' has-homework';
+    if (golden)       cls += ' golden';
+    if (hasHW)        cls += ' has-homework';
     card.className = cls;
 
     if (dead) {
@@ -230,7 +262,7 @@ function renderGarden() {
       const wl = hasHW ? '📝 Do homework' : '💧 Study (15 min)';
       const wc = hasHW ? 'water-btn hw' : 'water-btn';
       let badge = '';
-      if (hasHW) badge = `<div class="badge badge-hw">📝 Due</div>`;
+      if (hasHW)        badge = `<div class="badge badge-hw">📝 Due</div>`;
       else if (wilting) badge = `<div class="badge badge-danger">Thirsty</div>`;
       card.innerHTML = `
         ${badge}
@@ -244,19 +276,30 @@ function renderGarden() {
         <button class="${wc}" onclick="water(${i})">${wl}</button>
         <button class="water-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     }
-    grid.appendChild(card);
+    cards.push(card);
   });
 
+  // Add card at the end
   const addCard = document.createElement('div');
   addCard.className = 'add-card';
   addCard.onclick = openAddModal;
   addCard.innerHTML = `<span class="plus">+</span><span>New subject</span>`;
+
+  // Inject weed card at a fixed random slot (chosen once per session)
+  if (weedState.level > 0) {
+    if (weedSlot === null) {
+      weedSlot = Math.floor(Math.random() * (cards.length + 1));
+    }
+    const slot = Math.min(weedSlot, cards.length);
+    cards.splice(slot, 0, buildWeedCard());
+  }
+
+  cards.forEach(c => grid.appendChild(c));
   grid.appendChild(addCard);
 
   updateSubtitle();
 
   // auto-mark dead if health hits 0
-
   subjects.forEach((s, i) => {
     if (!s.dead && getHealth(s) <= 0) {
       subjects[i].dead = true;
@@ -274,7 +317,7 @@ function updateSubtitle() {
   else el.textContent = `${n} plants need attention 💧`;
 }
 
-// ─── Water / Revive ───────────────────────
+// ─── Water / Revive / Delete ──────────────
 
 function water(i) {
   const s = subjects[i];
@@ -284,16 +327,13 @@ function water(i) {
   subjects[i].lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
   subjects[i].dead = false;
 
-  // auto-check homework if applicable
-
   if (schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] === false) {
-      todayHW[s.id] = true;
-      if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
-      hwLog[TODAY_KEY][s.id] = true;
-      renderHWBanner();
+    todayHW[s.id] = true;
+    if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
+    hwLog[TODAY_KEY][s.id] = true;
+    renderHWBanner();
   }
   save();
-  updateWeed();
   renderGarden();
   showToast(`${s.emoji} ${s.name} watered! +${WATER_AMT[s.freq]}%`);
 }
@@ -326,14 +366,12 @@ function deleteSubject(id) {
 
 function renderTimetable() {
   const table = document.getElementById('timetable');
-
   if (subjects.length === 0) {
     table.innerHTML = `<tr><td style="padding:40px;color:var(--muted);text-align:center;font-size:13px">Add subjects first.</td></tr>`;
     return;
   }
   let html = `<thead><tr><th>Subject</th>${DAYS.map((d,i)=>`<th class="${i===TODAY_IDX?'today-col':''}">${d}</th>`).join('')}</tr></thead><tbody>`;
-  subjects.forEach((s, si) => {
-
+  subjects.forEach(s => {
     if (!schedule[s.id]) schedule[s.id] = {};
     html += `<tr><td><span class="subj-dot" style="background:${healthColor(getHealth(s))}"></span>${s.emoji} ${s.name}</td>`;
     DAYS.forEach((d, di) => {
@@ -363,6 +401,63 @@ function toggleDay(sid, di) {
   renderGarden();
 }
 
+// ─── Daily Check-in Screen ────────────────
+
+function showCheckin() {
+  const todaySubjects = subjects.filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
+  if (todaySubjects.length === 0) return; // nothing scheduled, skip
+
+  const screen = document.getElementById('checkin-screen');
+  const list = document.getElementById('checkin-list');
+  list.innerHTML = '';
+
+  todaySubjects.forEach(s => {
+    const item = document.createElement('div');
+    item.className = 'checkin-item';
+    item.innerHTML = `
+      <label class="checkin-label">
+        <input type="checkbox" class="checkin-box" data-id="${s.id}" ${todayHW[s.id] ? 'checked' : ''}>
+        <span class="checkin-check"></span>
+        <span>${s.emoji} ${s.name}</span>
+      </label>`;
+    list.appendChild(item);
+  });
+
+  screen.classList.remove('hidden');
+  screen.style.display = 'flex';
+}
+
+function confirmCheckin() {
+  const boxes = document.querySelectorAll('.checkin-box');
+  boxes.forEach(box => {
+    const sid = box.dataset.id;
+    const checked = box.checked;
+    todayHW[sid] = checked;
+    if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
+    hwLog[TODAY_KEY][sid] = checked;
+
+    if (checked) {
+      const s = subjects.find(s => s.id === sid);
+      if (s && !s.dead) {
+        const h = getHealth(s);
+        const newH = Math.min(100, h + WATER_AMT[s.freq]);
+        const dph = 100 / WILT_HOURS[s.freq];
+        s.lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
+      }
+    }
+  });
+
+  localStorage.setItem('bloom_checkin', TODAY_KEY);
+  save();
+
+  const screen = document.getElementById('checkin-screen');
+  screen.classList.add('hidden');
+  setTimeout(() => screen.style.display = 'none', 400);
+
+  renderHWBanner();
+  renderGarden();
+}
+
 // ─── Modal ────────────────────────────────
 
 function buildPlantPicker() {
@@ -387,7 +482,6 @@ function openAddModal() {
 }
 
 function closeModal(e) { if (e.target === document.getElementById('modal-overlay')) closeModalDirect(); }
-
 function closeModalDirect() { document.getElementById('modal-overlay').classList.remove('open'); }
 
 function addSubject() {
@@ -397,7 +491,6 @@ function addSubject() {
   subjects.push({ id: Date.now().toString(), name, emoji: selectedPlant, freq, created: Date.now(), lastWatered: Date.now(), dead: false });
   const newId = subjects[subjects.length - 1].id;
   schedule[newId] = {};
-
   save();
   closeModalDirect();
   renderGarden();
@@ -429,7 +522,6 @@ function showTab(tab) {
 // ─── Toast ────────────────────────────────
 
 let toastTimer;
-
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
@@ -439,22 +531,44 @@ function showToast(msg) {
 
 // ─── Init ─────────────────────────────────
 
+// Migrate old subjects without IDs
 subjects.forEach((s, i) => {
   if (!s.id) subjects[i].id = (s.created || Date.now() + i).toString();
-  if (schedule[i] && schedule[i][TODAY_IDX] && todayHW[i] === undefined) {
-    todayHW[i] = false;
-  }
 });
+save();
 
+// Show welcome or app
 if (!localStorage.getItem('bloom_welcomed')) {
-  // show welcome
+  // welcome screen stays visible
 } else {
   document.getElementById('welcome-screen').style.display = 'none';
+
+  // Show daily check-in once per day
+  const lastCheckin = localStorage.getItem('bloom_checkin');
+  if (lastCheckin !== TODAY_KEY && subjects.length > 0) {
+    showCheckin();
+  }
 }
 
+updateBgColor();
 renderGarden();
 renderHWBanner();
-renderWeeds();
-updateDarkness();
 updateWeed();
-setInterval(() => { renderGarden(); updateWeed(); }, 60000);
+
+// Remove old weed bar (no longer used)
+document.getElementById('weed-bar').style.display = 'none';
+
+// Auto-refresh every 60 seconds
+setInterval(() => { renderGarden(); }, 60000);
+
+// Check weed at midnight
+function msUntilMidnight() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return midnight - now;
+}
+setTimeout(() => {
+  updateWeed();
+  setInterval(updateWeed, 24 * 60 * 60 * 1000);
+}, msUntilMidnight());
