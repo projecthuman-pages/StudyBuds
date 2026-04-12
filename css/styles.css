@@ -368,3 +368,20 @@ tbody td:first-child { padding-left:18px; text-align:left; font-weight:700; }
 
 /* ── Weed sway (used on weed card emoji) ──── */
 @keyframes weedSway { 0%,100%{transform:rotate(-5deg)} 50%{transform:rotate(5deg)} }
+
+/* ── Study Popover ───────────────────────── */
+.study-popover {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  margin-top: 2px; width: 100%;
+}
+
+.popover-btn {
+  flex: 1; min-width: calc(50% - 5px);
+  font-size: 10px; font-weight: 800; padding: 6px 4px;
+  border-radius: 10px; border: 1.5px solid var(--accent);
+  background: var(--accent-light); color: var(--accent);
+  cursor: pointer; transition: all 0.15s;
+  font-family: 'Nunito', sans-serif; text-align: center;
+}
+
+.popover-btn:hover { background: var(--accent); color: #fff; }
