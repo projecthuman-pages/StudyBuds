@@ -1,5 +1,3 @@
-<script>
-
 // ─── Constants ────────────────────────────
 
 const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
@@ -444,4 +442,3 @@ renderWeeds();
 updateDarkness();
 updateWeed();
 setInterval(() => { renderGarden(); updateWeed(); }, 60000);
-</script>
