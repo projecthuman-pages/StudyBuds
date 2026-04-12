@@ -297,11 +297,11 @@ function water(i) {
 
   // auto-check homework if applicable
 
-  if (schedule[i] && schedule[i][TODAY_IDX] && todayHW[i] === false) {
-    todayHW[i] = true;
-    if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
-    hwLog[TODAY_KEY][i] = true;
-    renderHWBanner();
+  if (schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] === false) {
+      todayHW[s.id] = true;
+      if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
+      hwLog[TODAY_KEY][s.id] = true;
+      renderHWBanner();
   }
   save();
   updateWeed();
@@ -405,9 +405,9 @@ function addSubject() {
   const name = document.getElementById('input-name').value.trim();
   if (!name) { document.getElementById('input-name').focus(); return; }
   const freq = document.getElementById('input-freq').value;
-  const idx = subjects.length;
   subjects.push({ id: Date.now().toString(), name, emoji: selectedPlant, freq, created: Date.now(), lastWatered: Date.now(), dead: false });
-  schedule[idx] = {};
+  const newId = subjects[subjects.length - 1].id;
+  schedule[newId] = {};
 
   save();
   closeModalDirect();
