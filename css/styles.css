@@ -107,7 +107,7 @@ header {
   transition: background 1.2s ease;
 }
 
-.logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 300; font-style: italic; color: var(--accent); display: flex; align-items: center; gap: 8px; }
+.logo { font-family: 'Fredoka One', cursive; font-size: 22px; font-weight: 400; color: var(--accent); display: flex; align-items: center; gap: 8px; }
 .header-actions { display: flex; gap: 8px; align-items: center; }
 .btn { border: none; cursor: pointer; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; border-radius: 20px; padding: 8px 16px; transition: all 0.18s ease; }
 .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
