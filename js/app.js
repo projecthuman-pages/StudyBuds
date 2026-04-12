@@ -266,7 +266,7 @@ function renderGarden() {
         <button class="seed-btn" onclick="revive(${i})">🌱 Replant (15 min)</button>
         <button class="seed-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     } else {
-      const wl = hasHW ? '📝 Do homework' : '💧 Study (15 min)';
+      const wl = hasHW ? '📝 Do homework' : '💧 Study';
       const wc = hasHW ? 'water-btn hw' : 'water-btn';
       let badge = '';
       if (hasHW)        badge = `<div class="badge badge-hw">📝 Due</div>`;
@@ -359,7 +359,7 @@ function toggleHWMenu(i, hasHW, btnEl) {
 
   if (hasHW) {
     // homework button just does it immediately, no time picker needed
-    water(i, 45);
+    water(i, 30);
     return;
   }
 
@@ -562,12 +562,26 @@ function dismissWelcome() {
 
 // ─── Tabs ─────────────────────────────────
 
+let hasVisitedTimetable = false;
+
 function showTab(tab) {
   document.getElementById('view-garden').style.display    = tab==='garden'    ? '' : 'none';
   document.getElementById('view-timetable').style.display = tab==='timetable' ? '' : 'none';
   document.getElementById('tab-garden').classList.toggle('active', tab==='garden');
   document.getElementById('tab-timetable').classList.toggle('active', tab==='timetable');
   if (tab==='timetable') renderTimetable();
+
+  // First time returning to garden after visiting timetable — show check-in if not done today
+  if (tab === 'garden' && hasVisitedTimetable) {
+    const lastCheckin = localStorage.getItem('bloom_checkin');
+    const todaySubjects = subjects.filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
+    if (lastCheckin !== TODAY_KEY && todaySubjects.length > 0) {
+      showCheckin();
+    }
+    hasVisitedTimetable = false; // reset so it doesn't keep popping up
+  }
+
+  if (tab === 'timetable') hasVisitedTimetable = true;
 }
 
 // ─── Toast ────────────────────────────────
@@ -594,9 +608,10 @@ if (!localStorage.getItem('bloom_welcomed')) {
 } else {
   document.getElementById('welcome-screen').style.display = 'none';
 
-  // Show daily check-in once per day
+  // Show daily check-in once per day, only if subjects exist AND have timetable days set
   const lastCheckin = localStorage.getItem('bloom_checkin');
-  if (lastCheckin !== TODAY_KEY && subjects.length > 0) {
+  const todaySubjects = subjects.filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
+  if (lastCheckin !== TODAY_KEY && todaySubjects.length > 0) {
     showCheckin();
   }
 }
