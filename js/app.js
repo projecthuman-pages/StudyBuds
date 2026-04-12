@@ -5,7 +5,14 @@ const _today = new Date();
 const TODAY_IDX = _today.getDay() === 0 ? 6 : _today.getDay() - 1;
 const TODAY_KEY = `${_today.getFullYear()}-${String(_today.getMonth()+1).padStart(2,'0')}-${String(_today.getDate()).padStart(2,'0')}`;
 const WILT_HOURS = { high: 24, medium: 72, low: 168 };
-const WATER_AMT  = { high: 45, medium: 32, low: 22 };
+const WATER_AMT  = { high: 15, medium: 15, low: 15 };
+const STUDY_TIMES = [
+  { label: '15 min', pct: 15 },
+  { label: '30 min', pct: 30 },
+  { label: '45 min', pct: 45 },
+  { label: '1 hour', pct: 60 },
+  { label: '1.5 hrs', pct: 90 },
+];
 const PLANT_OPTIONS = ['🌸','🌺','🌻','🌹','🌷','🌼','💐','🌿','🍀','🌱','🌵','🎋','🪴','🎍','🍃'];
 const WEED_EMOJI = '🐛';
 const MISS_WEED1 = 0.40;
@@ -273,7 +280,7 @@ function renderGarden() {
         <div class="plant-name">${s.name}</div>
         <div class="health-bar-wrap"><div class="health-bar" style="width:${h}%;background:${healthColor(h)}"></div></div>
         <div class="health-label">${healthLabel(h)}</div>
-        <button class="${wc}" onclick="water(${i})">${wl}</button>
+        <button class="${wc}" onclick="togglePopover(${i}, ${hasHW}, this)">${wl}</button>
         <button class="water-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     }
     cards.push(card);
@@ -319,10 +326,10 @@ function updateSubtitle() {
 
 // ─── Water / Revive / Delete ──────────────
 
-function water(i) {
+function water(i, pct) {
   const s = subjects[i];
   const h = getHealth(s);
-  const newH = Math.min(100, h + WATER_AMT[s.freq]);
+  const newH = Math.min(100, h + pct);
   const dph = 100 / WILT_HOURS[s.freq];
   subjects[i].lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
   subjects[i].dead = false;
@@ -335,7 +342,51 @@ function water(i) {
   }
   save();
   renderGarden();
-  showToast(`${s.emoji} ${s.name} watered! +${WATER_AMT[s.freq]}%`);
+  showToast(`${s.emoji} ${s.name} studied! +${pct}% 💧`);
+}
+
+let openPopover = null;
+
+function togglePopover(i, hasHW, btnEl) {
+  // close any already open popover
+  if (openPopover) {
+    openPopover.remove();
+    openPopover = null;
+  }
+
+  const pop = document.createElement('div');
+  pop.className = 'study-popover';
+
+  if (hasHW) {
+    // homework button just does it immediately, no time picker needed
+    water(i, 45);
+    return;
+  }
+
+  STUDY_TIMES.forEach(t => {
+    const b = document.createElement('button');
+    b.className = 'popover-btn';
+    b.textContent = t.label;
+    b.onclick = (e) => {
+      e.stopPropagation();
+      pop.remove();
+      openPopover = null;
+      water(i, t.pct);
+    };
+    pop.appendChild(b);
+  });
+
+  btnEl.parentNode.insertBefore(pop, btnEl.nextSibling);
+  openPopover = pop;
+
+  // close if clicking anywhere else
+  setTimeout(() => {
+    document.addEventListener('click', function handler() {
+      pop.remove();
+      openPopover = null;
+      document.removeEventListener('click', handler);
+    }, { once: true });
+  }, 0);
 }
 
 function revive(i) {
