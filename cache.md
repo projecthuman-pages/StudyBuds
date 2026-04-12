@@ -1,3 +1,8 @@
+hwLog['2026-04-12'] = {};
+todayHW = {};
+save();
+renderGarden();
+renderHWBanner();
 localStorage.removeItem('bloom_subjects');
 localStorage.removeItem('bloom_schedule');
 localStorage.removeItem('bloom_hwlog');
