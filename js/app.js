@@ -68,15 +68,15 @@ function getMissRate() {
 
 // ─── Golden (all assigned hw done in last 7 days) ─
 
-function isGolden(idx) {
+function isGolden(sid) {
   let assigned = 0, done = 0;
   for (let i = 6; i >= 0; i--) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const key = d.toISOString().slice(0,10);
     const dayLog = hwLog[key];
-    if (!dayLog || dayLog[idx] === undefined) continue;
+    if (!dayLog || dayLog[sid] === undefined) continue;
     assigned++;
-    if (dayLog[idx]) done++;
+    if (dayLog[sid]) done++;
   }
   return assigned >= 1 && done === assigned;
 }
@@ -141,42 +141,53 @@ function renderHWBanner() {
   const chips = document.getElementById('hw-chips');
   chips.innerHTML = '';
 
-  const todaySubjects = subjects
-    .map((s,i) => ({s,i}))
-    .filter(({i}) => schedule[i] && schedule[i][TODAY_IDX]);
+   const todaySubjects = subjects
+    .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
 
   if (todaySubjects.length === 0) {
     chips.innerHTML = '<div class="hw-none">No subjects scheduled today — enjoy! 🌞</div>';
     return;
   }
 
-  todaySubjects.forEach(({s, i}) => {
-    const done = todayHW[i] === true;
-    const chip = document.createElement('div');
-    chip.className = `hw-chip ${done ? 'done' : ''}`;
-    chip.innerHTML = `<div class="chip-check">${done ? '✓' : ''}</div>${s.emoji} ${s.name}`;
-    chip.onclick = () => toggleHW(i);
-    chips.appendChild(chip);
-  });
+  todaySubjects.forEach(s => {
+      const done = todayHW[s.id] === true;
+      const chip = document.createElement('div');
+      chip.className = `hw-chip ${done ? 'done' : ''}`;
+      chip.innerHTML = `<div class="chip-check">${done ? '✓' : ''}</div>${s.emoji} ${s.name}`;
+      chip.onclick = () => toggleHW(s.id);
+      chips.appendChild(chip);
+    });
 }
 
-function toggleHW(idx) {
-  const wasDone = todayHW[idx] === true;
-  todayHW[idx] = !wasDone;
+function toggleHW(sid) {
+  const wasDone = todayHW[sid] === true;
+  todayHW[sid] = !wasDone;
 
   if (!hwLog[TODAY_KEY]) hwLog[TODAY_KEY] = {};
-  hwLog[TODAY_KEY][idx] = todayHW[idx];
+  hwLog[TODAY_KEY][sid] = todayHW[sid];
 
-  if (todayHW[idx]) {
-    const s = subjects[idx];
+  if (todayHW[sid]) {
+    const s = subjects.find(s => s.id === sid);
     if (s && !s.dead) {
       const h = getHealth(s);
       const newH = Math.min(100, h + WATER_AMT[s.freq]);
       const dph = 100 / WILT_HOURS[s.freq];
-      subjects[idx].lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
+      s.lastWatered = Date.now() - ((100 - newH) / dph) * 3600000;
       showToast(`${s.emoji} ${s.name} homework done! 💧`);
     }
   }
+
+  save();
+  updateWeed();
+  renderHWBanner();
+  renderGarden();
+}
+
+  save();
+  updateWeed();
+  renderHWBanner();
+  renderGarden();
+}
 
   save();
   updateWeed();
@@ -208,8 +219,8 @@ function renderGarden() {
     const h = getHealth(s);
     const dead   = s.dead || h <= 0;
     const wilting = !dead && h <= 35;
-    const golden  = !dead && isGolden(i);
-    const hasHW   = schedule[i] && schedule[i][TODAY_IDX] && todayHW[i] === false;
+    const golden  = !dead && isGolden(s.id);
+    const hasHW   = schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] === false;
     const card = document.createElement('div');
 
     let cls = 'plant-card';
@@ -224,7 +235,8 @@ function renderGarden() {
         <div class="plant-name">${s.name}</div>
         <div style="font-size:40px;margin:6px 0">🌰</div>
         <div style="font-size:10px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.07em">Dormant</div>
-        <button class="seed-btn" onclick="revive(${i})">🌱 Replant (15 min)</button>`;
+        <button class="seed-btn" onclick="revive(${i})">🌱 Replant (15 min)</button>
+        <button class="seed-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     } else {
       const wl = hasHW ? '📝 Do homework' : '💧 Study (15 min)';
       const wc = hasHW ? 'water-btn hw' : 'water-btn';
@@ -240,7 +252,8 @@ function renderGarden() {
         <div class="plant-name">${s.name}</div>
         <div class="health-bar-wrap"><div class="health-bar" style="width:${h}%;background:${healthColor(h)}"></div></div>
         <div class="health-label">${healthLabel(h)}</div>
-        <button class="${wc}" onclick="water(${i})">${wl}</button>`;
+        <button class="${wc}" onclick="water(${i})">${wl}</button>
+        <button class="water-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     }
     grid.appendChild(card);
   });
@@ -306,6 +319,20 @@ function revive(i) {
   showToast(`${s.emoji} ${s.name} is sprouting back! 🌱`);
 }
 
+function deleteSubject(id) {
+  const idx = subjects.findIndex(s => s.id === id);
+  if (idx === -1) return;
+  const s = subjects[idx];
+  subjects.splice(idx, 1);
+  delete schedule[id];
+  delete todayHW[id];
+  save();
+  renderGarden();
+  renderTimetable();
+  renderHWBanner();
+  showToast(`${s.emoji} ${s.name} removed 🌿`);
+}
+
 // ─── Timetable ────────────────────────────
 
 function renderTimetable() {
@@ -318,12 +345,12 @@ function renderTimetable() {
   let html = `<thead><tr><th>Subject</th>${DAYS.map((d,i)=>`<th class="${i===TODAY_IDX?'today-col':''}">${d}</th>`).join('')}</tr></thead><tbody>`;
   subjects.forEach((s, si) => {
 
-    if (!schedule[si]) schedule[si] = {};
+    if (!schedule[s.id]) schedule[s.id] = {};
     html += `<tr><td><span class="subj-dot" style="background:${healthColor(getHealth(s))}"></span>${s.emoji} ${s.name}</td>`;
     DAYS.forEach((d, di) => {
-      const on = !!schedule[si][di];
+      const on = !!schedule[s.id][di];
       html += `<td class="${di===TODAY_IDX?'today-col':''}">
-        <button class="day-cell ${on?'active':''}" onclick="toggleDay(${si},${di})">
+        <button class="day-cell ${on?'active':''}" onclick="toggleDay('${s.id}',${di})">
           <span class="day-cell-inner">✓</span>
           <span class="day-cell-dot"></span>
         </button></td>`;
@@ -334,12 +361,12 @@ function renderTimetable() {
   table.innerHTML = html;
 }
 
-function toggleDay(si, di) {
-  if (!schedule[si]) schedule[si] = {};
-  schedule[si][di] = !schedule[si][di];
+function toggleDay(sid, di) {
+  if (!schedule[sid]) schedule[sid] = {};
+  schedule[sid][di] = !schedule[sid][di];
   if (di === TODAY_IDX) {
-    if (!schedule[si][di]) delete todayHW[si];
-    else if (todayHW[si] === undefined) todayHW[si] = false;
+    if (!schedule[sid][di]) delete todayHW[sid];
+    else if (todayHW[sid] === undefined) todayHW[sid] = false;
   }
   save();
   renderTimetable();
@@ -379,7 +406,7 @@ function addSubject() {
   if (!name) { document.getElementById('input-name').focus(); return; }
   const freq = document.getElementById('input-freq').value;
   const idx = subjects.length;
-  subjects.push({ name, emoji: selectedPlant, freq, created: Date.now(), lastWatered: Date.now(), dead: false });
+  subjects.push({ id: Date.now().toString(), name, emoji: selectedPlant, freq, created: Date.now(), lastWatered: Date.now(), dead: false });
   schedule[idx] = {};
 
   save();
@@ -424,7 +451,7 @@ function showToast(msg) {
 // ─── Init ─────────────────────────────────
 
 subjects.forEach((s, i) => {
-
+  if (!s.id) subjects[i].id = (s.created || Date.now() + i).toString();
   if (schedule[i] && schedule[i][TODAY_IDX] && todayHW[i] === undefined) {
     todayHW[i] = false;
   }
