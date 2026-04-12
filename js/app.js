@@ -280,7 +280,7 @@ function renderGarden() {
         <div class="plant-name">${s.name}</div>
         <div class="health-bar-wrap"><div class="health-bar" style="width:${h}%;background:${healthColor(h)}"></div></div>
         <div class="health-label">${healthLabel(h)}</div>
-        <button class="${wc}" onclick="togglePopover(${i}, ${hasHW}, this)">${wl}</button>
+        <button class="${wc}" onclick="toggleHWMenu(${i}, ${hasHW}, this)">${wl}</button>
         <button class="water-btn" style="background:var(--danger-light);color:var(--danger);margin-top:4px" onclick="deleteSubject('${s.id}')">🗑️ Remove</button>`;
     }
     cards.push(card);
