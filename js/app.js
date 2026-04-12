@@ -183,18 +183,6 @@ function toggleHW(sid) {
   renderGarden();
 }
 
-  save();
-  updateWeed();
-  renderHWBanner();
-  renderGarden();
-}
-
-  save();
-  updateWeed();
-  renderHWBanner();
-  renderGarden();
-}
-
 // ─── Face SVG ─────────────────────────────
 
 function faceSVG(health) {
