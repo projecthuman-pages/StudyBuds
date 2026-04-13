@@ -444,7 +444,9 @@ function toggleDay(sid, di) {
   schedule[sid][di] = !schedule[sid][di];
   if (di === TODAY_IDX) {
     if (!schedule[sid][di]) delete todayHW[sid];
-    else if (todayHW[sid] === undefined) todayHW[sid] = false;
+    else if (todayHW[sid] === undefined && localStorage.getItem('bloom_checkin') === TODAY_KEY) {
+      todayHW[sid] = false;
+    }
   }
   save();
   renderTimetable();
