@@ -490,8 +490,10 @@ function confirmCheckin() {
       } else {
         // no homework today — remove entirely
         delete todayHW[sid];
+        document.getElementById('debug').textContent = 'todayHW after checkin: ' + JSON.stringify(todayHW);
       }
     });
+  
 
   localStorage.setItem('bloom_checkin', TODAY_KEY);
   save();
