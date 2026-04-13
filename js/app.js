@@ -178,6 +178,7 @@ function buildWeedCard() {
 function renderHWBanner() {
   const chips = document.getElementById('hw-chips');
   chips.innerHTML = '';
+  document.getElementById('debug').textContent = 'banner todayHW: ' + JSON.stringify(todayHW);
 
   const todaySubjects = subjects
     .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
