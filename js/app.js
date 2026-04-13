@@ -178,7 +178,6 @@ function buildWeedCard() {
 function renderHWBanner() {
   const chips = document.getElementById('hw-chips');
   chips.innerHTML = '';
-  document.getElementById('debug').textContent = 'banner todayHW: ' + JSON.stringify(todayHW);
 
   const todaySubjects = subjects
     .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] !== undefined);
@@ -492,7 +491,6 @@ function confirmCheckin() {
       } else {
         // no homework today — remove entirely
         delete todayHW[sid];
-        document.getElementById('debug').textContent = 'todayHW: ' + JSON.stringify(todayHW) + ' | boxes found: ' + document.querySelectorAll('.checkin-box').length + ' | schedule: ' + JSON.stringify(schedule);
       }
     });
   
