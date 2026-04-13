@@ -181,7 +181,8 @@ function renderHWBanner() {
   document.getElementById('debug').textContent = 'banner todayHW: ' + JSON.stringify(todayHW);
 
   const todaySubjects = subjects
-    .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX]);
+    .filter(s => schedule[s.id] && schedule[s.id][TODAY_IDX] && todayHW[s.id] !== undefined);
+
 
   if (todaySubjects.length === 0) {
     chips.innerHTML = '<div class="hw-none">No subjects scheduled today — enjoy! 🌞</div>';
